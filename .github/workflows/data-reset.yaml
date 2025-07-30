@@ -23,17 +23,17 @@ on:
           - dev-ne-rasi1
       reset_user_data:
         type: boolean
-        description: 'Reset the user-data container?'
+        description: 'Reset user-data container'
         required: true
         default: true
       reset_central_records:
         type: boolean
-        description: 'Reset the central-records container?'
+        description: 'Reset central-records container'
         required: true
         default: true
       reset_blobs:
         type: boolean
-        description: 'Reset Blob Storage containers?'
+        description: 'Reset Blob Storage containers'
         required: true
         default: true
 
