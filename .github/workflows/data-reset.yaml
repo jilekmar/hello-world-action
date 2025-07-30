@@ -1,0 +1,103 @@
+name: Reset Sample Data
+
+on:
+  workflow_dispatch:
+    inputs:
+      stack:
+        type: choice
+        description: 'Select environment (initials replace {me})'
+        required: true
+        options:
+          - dev-ne-{me}1
+          - dev-ne-alna1
+          - dev-ne-dava1
+          - dev-ne-maji1
+          - dev-ne-erde1
+          - dev-ne-jamu1
+          - dev-ne-jaza1
+          - dev-ne-mato1
+          - dev-ne-peno1
+          - dev-ne-vaji1
+          - dev-ne-zdko1
+          - dev-ne-anso1
+          - dev-ne-rasi1
+      reset_user_data:
+        type: boolean
+        description: 'Reset the user-data container?'
+        required: true
+        default: true
+      reset_central_records:
+        type: boolean
+        description: 'Reset the central-records container?'
+        required: true
+        default: true
+      reset_blobs:
+        type: boolean
+        description: 'Reset Blob Storage containers?'
+        required: true
+        default: true
+
+jobs:
+  reset:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout develop branch
+        uses: actions/checkout@v4
+        with:
+          ref: develop
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: >-
+            {
+              "clientId":     "${{ vars.AZURE_CLIENT_ID}}",
+              "clientSecret":"${{ secrets.AZURE_CLIENT_SECRET }}",
+              "subscriptionId":"${{ vars.AZURE_SUBSCRIPTION_ID }}",
+              "tenantId":     "${{ vars.AZURE_TENANT_ID }}"
+            }
+
+      - name: Derive initials & stack
+        id: derive
+        run: |
+          case "$GITHUB_ACTOR" in
+            Allanonek) i=alna;;
+            DVagner02) i=dava;;
+            martin-jilek-work) i=maji;;
+            erikd-th) i=erde;;
+            jaroslav-m) i=jamu;;
+            JanZahalka) i=jaza;;
+            novak-petr46) i=peno;;
+            vjirkov-tolion) i=vaji;;
+            radeksip-tolionhealth) i=rasi;;
+            zkodejs2) i=zdko;;
+            *) echo "Unknown actor" >&2; exit 1;;
+          esac
+          echo "::set-output name=suffix::$i"
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r data-model/sample-data/dev/scripts/requirements.txt
+
+      - name: Reset Cosmos DB
+        if: ${{ inputs.reset_user_data || inputs.reset_central_records }}
+        run: |
+          python data-model/sample-data/dev/scripts/reset_cosmos_containers.py \
+            --endpoint "${{ vars.AZURE_COSMOS_ENDPOINT }}" \
+            --database db01 \
+            --suffix   "${{ steps.derive.outputs.suffix }}" \
+            $([[ "${{ inputs.reset_user_data }}" == 'true' ]] && echo --reset-user-data) \
+            $([[ "${{ inputs.reset_central_records }}" == 'true' ]] && echo --reset-central-records)
+
+      - name: Reset Azure Blob
+        if: ${{ inputs.reset_blobs }}
+        run: |
+          python data-model/sample-data/dev/scripts/reset_blob_containers.py \
+            --account '${{ vars.AZURE_STORAGE_ACCOUNT }}' \
+            --suffix  "${{ steps.derive.outputs.suffix }}"
