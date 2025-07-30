@@ -5,7 +5,7 @@ on:
     inputs:
       stack:
         type: choice
-        description: 'Select environment (initials replace {me})'
+        description: 'The stack (environment) to reset'
         required: true
         options:
           - dev-ne-{me}1
